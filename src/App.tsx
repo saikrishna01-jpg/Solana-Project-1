@@ -3,6 +3,7 @@ import { useState, useEffect} from 'react';
 import './App.css';
 import * as web3 from '@solana/web3.js'
 import { Buffer } from 'buffer';
+
 import {
   clusterApiUrl,
   Connection,
@@ -16,7 +17,7 @@ import {
 // @ts-ignore
 window.Buffer = Buffer;
 
-type DisplayEncoding = "utf8" | "hex";
+type DisplayEncoding = "utf8" | "hefx";
 
 type PhantomEvent = "disconnect" | "connect" | "accountChanged";
 type PhantomRequestMethod = 
@@ -88,8 +89,10 @@ function App() {
   const [balance, setBalance] = useState(0);
   const [phantomBalance, setPhantomBalance] = useState(0);
   
+  
   const createPair = async () => {
     const newPair = Keypair.generate();
+
     setPublicKey(newPair.secretKey);
     try {
       const connection  = new Connection(clusterApiUrl("devnet"), "confirmed");
@@ -110,23 +113,36 @@ function App() {
 
     } catch (err) {
       console.log(err);
-      
     }
   }
+
 
   const transfer = async () => {
     const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
     const secret = Uint8Array.from(publicKey);
     const key = Keypair.fromSecretKey(secret);
+    // @ts-ignore
+    const receiver = new PublicKey(walletKey.toString());
+
+
+    const airdropSignature = await connection.requestAirdrop(
+      new PublicKey(key.publicKey),
+      0.000005 * LAMPORTS_PER_SOL
+    )
+    await connection.confirmTransaction(airdropSignature);
+
 
     var transaction = new Transaction().add(
       SystemProgram.transfer({
         fromPubkey: key.publicKey,
-        // @ts-ignore
-        toPubkey: new PublicKey(walletKey.toString()),
-        lamports: 1.9*LAMPORTS_PER_SOL
+        toPubkey: new PublicKey(receiver),
+        lamports: 2*LAMPORTS_PER_SOL
       })
     )
+
+
+    let blockhash = (await connection.getLatestBlockhash('finalized')).blockhash;
+    transaction.recentBlockhash = blockhash;
 
     var signature = await web3.sendAndConfirmTransaction(
       connection,
